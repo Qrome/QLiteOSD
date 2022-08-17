@@ -47,7 +47,7 @@ CONSEQUENTIAL DAMAGES, FOR ANY REASON WHATSOEVER.
 * Put in WiFi mode by grounding pin D3 for 3 seconds
 * When in WiFi mode connect to the Access Point using password 12345678 
 * When connected to the access point pull up the web interface on http://192.168.4.1
-* 3D print your own case for the QLiteOSD:  https://www.thingiverse.com/thing:5462988  
+* 3D print your own case for the QLiteOSD:  https://www.printables.com/model/259387-qliteosd-cover-for-dji-fpv-osd
  
 ## OSD Placement
 ![QLiteOSD initial Testing](/images/OSD_positions.png)  
