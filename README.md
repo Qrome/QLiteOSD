@@ -61,3 +61,30 @@ CONSEQUENTIAL DAMAGES, FOR ANY REASON WHATSOEVER.
 ![QLiteOSD Basic Kit](/images/PXL_20220613_004957916.jpg)  
 ![QLiteOSD Basic Kit](/images/PXL_20220613_010424662.jpg)  
 
+##FAQ
+**Will the QLiteOSD send the armed command to the DJI Video Transmitter?**  
+Yes, the arm signal is sent when the OSD detects a change of +1.5 meters (about 5 feet) above the altitude the OSD was powered on with.  This is nice as it will tell the DJI system to start recording and bump the transmit power up if you are using auto power on arming.  This does not require GPS.  
+
+**Is GPS required to use the QLiteOSD?**  
+No, the GPS is not required.  If you choose not to use the GPS, then you may want to consider using the NOGPS binary or compile the source with the defined USE_GPS commented out.   This will remove the items on the OSD that are GPS related.  
+
+**Can I move the locations of the OSD elements around in the goggles?**  
+Yes, it would require editing the OSD_positions_config.h and referencing the mapping image to define the locations.  You can enable or disable elements by the number assigned to it.  See the notes in that file.  After making changes to the config file you would then compile and load the binary to your OSD.  
+
+**Can I have RSSI or LQ in the QLiteOSD?**  
+This is currently not supported. Often this can be setup with audible alerts in your own radio.  The QLiteOSD does not currently require any connection from the aircraft receiver.  
+
+**Can I adjust the reading of the pack voltage?**  
+Yes.  The best way to get an accurate reading of the pack voltage is to adjust the output voltage of the Mini360 step down to as close to 6V as you can.  When the Wemos D1 mini board is powered with 6V, the internal system 5V is very close to 5V and this is used in the calculation.  
+
+**How do I enable the QLiteOSD GPS logging feature?**  
+When using the GPS and the default compiled binary, it is enabled by default and every flight should log to the internal memory on the Wemos D1 Mini.  To disable logging, compile the source code with #define LOG_GPS commented out in the OSD_positions_config.h file.  Logging starts when the altitude changes + 1.5 meter above the powered on altitude and there is a GPS lock.  
+
+**How do I download the GPX (GPS Log files) from the QLiteOSD?**  
+* Put the QLiteOSD device into WiFi Mode, join the Access Point and download the files.
+ * When the OSD is on, jumper the Wemos D1 Mini D3 pin with GND for 3 seconds.  The light will turn solid indicating it is now in WiFi Mode and is visible as an Access Point.
+ * QLiteOSD_xxxxx – where the xxxxxx is the unique serial number on the chip will show.  Join your phone or computer to the Access Point using the default password 12345678.
+ * After connected to the divide over wifi, pull open a web browser to the following address:   http://192.168.4.1  – this will pull up the logged files.
+* There are several free GPX Log file viewers including GeoTracker for Android.  Google Earth will also view them.  
+
+
