@@ -82,9 +82,9 @@ CONSEQUENTIAL DAMAGES, FOR ANY REASON WHATSOEVER.
 
 **How do I download the GPX (GPS Log files) from the QLiteOSD?**  
 * Put the QLiteOSD device into WiFi Mode, join the Access Point and download the files.
- - When the OSD is on, jumper the Wemos D1 Mini D3 pin with GND for 3 seconds.  The light will turn solid indicating it is now in WiFi Mode and is visible as an Access Point.
- - QLiteOSD_xxxxx – where the xxxxxx is the unique serial number on the chip will show.  Join your phone or computer to the Access Point using the default password 12345678.
- - After connected to the divide over wifi, pull open a web browser to the following address:   http://192.168.4.1  – this will pull up the logged files.
+    - When the OSD is on, jumper the Wemos D1 Mini D3 pin with GND for 3 seconds.  The light will turn solid indicating it is now in WiFi Mode and is visible as an Access Point.
+    - QLiteOSD_xxxxx – where the xxxxxx is the unique serial number on the chip will show.  Join your phone or computer to the Access Point using the default password 12345678.
+    - After connected to the divide over wifi, pull open a web browser to the following address:   http://192.168.4.1  – this will pull up the logged files.
 * There are several free GPX Log file viewers including GeoTracker for Android.  Google Earth will also view them.  
 
 
