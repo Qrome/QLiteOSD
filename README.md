@@ -3,7 +3,8 @@
 QLiteOSD is a simple Arduino Nano/ESP8266 based OSD for DJI FPV System for those times you want OSD but without the flight controller.  Main features provide flight battery voltage, altitude, and GPS support.  Perfect for Sport FPV flying.
 
 Kits Available:  https://www.etsy.com/listing/1272353602/qliteosd-for-dji-fpv-on-screen-display  
-Assembly Guide:  https://github.com/Qrome/QLiteOSD/blob/master/QLiteOSD%20Board%20Assembly.pdf
+Assembly Guide:  https://github.com/Qrome/QLiteOSD/blob/master/QLiteOSD%20Board%20Assembly.pdf  
+FAQ:  https://github.com/Qrome/QLiteOSD/blob/master/README.md#faq
 
 ## Components
 * Wemos D1 Mini (ESP8266) board https://amzn.to/3wW6TIj
