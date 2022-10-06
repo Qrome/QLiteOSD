@@ -29,8 +29,7 @@ IN ANY CIRCUMSTANCES, BE LIABLE FOR SPECIAL, INCIDENTAL OR
 CONSEQUENTIAL DAMAGES, FOR ANY REASON WHATSOEVER.
  
 ## Basic Configuration
-* Select the Micro Controller board you are using in the OSD_positions_config.h file.  Uncomment ESP8266 to use the Wemos D1 Mini board.  If it is commented out it will default to the ATMega chip and pins.
-* Arduino Nano or Wemos D1 Mini TX1 to DJI Air unit RX (baud: 115200)
+* Wemos D1 Mini TX1 to DJI Air unit RX (baud: 115200)
 * BMP280 Sensor on I2C default pins (ATMega A4 and A5/Wemos ESP8266 pins D1 and D2)
 * Optional GPS (ATMega RX:4 and TX:3/Wemos D1 Mini RX:D8 and TX:D7) -- GPS is optional and requires that you uncomment the USE_GPS in the OSD_positions_config.h file.
 * Voltage Sensor on A0 analog pin (use a 30K/7.5K Resistor divider)
@@ -40,6 +39,12 @@ CONSEQUENTIAL DAMAGES, FOR ANY REASON WHATSOEVER.
 * Download GPS logs through WiFi Access Point
 * ESP866 D3 pin grounded for 3 seconds will turn on WiFi mode (turns off OSD mode)
 * You can move the OSD items around the screen by using the chart below and setting the value in the OSD_positions_config.h file.  If you wish to hide an option use the value 234.  Note: not all OSD options are supported by DJI FPV goggles.
+
+## Compiled Binary Files
+* QLiteOSD.GPS_IMP_1.X.bin -- with GPS support and Imperial measure (feet, Mph)  
+* QLiteOSD.GPS_MET_1.X.bin -- with GPS support and Metric measure (Meters, Kph)  
+* QLiteOSD.NOGPS_IMP_1.X.bin -- NO GPS support and Imperial measure (feet altitude)  
+* QLiteOSD.NOGPS_MET_1.X.bin -- NO GPS support and Metric measure (Meters altitude)  
  
 ## Operation
 * Run Pack Voltage to BAT pins (7.4 - 17V) -- This voltage will also power the DJI FPV unit.
