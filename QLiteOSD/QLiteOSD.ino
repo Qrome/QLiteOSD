@@ -21,7 +21,7 @@
  * CONSEQUENTIAL DAMAGES, FOR ANY REASON WHATSOEVER.
  *
  */
- 
+
 /* 
  *  QLiteOSD
  *
@@ -37,13 +37,15 @@
 #include <MSP.h>
 #include "MSP_OSD.h"
 #include "OSD_positions_config.h"
-#include <Adafruit_BMP280.h> // May need to adjust for I2C address #define BMP280_ADDRESS  (0x76)
+#include <Adafruit_BMP280.h>  // May need to adjust for I2C address #define BMP280_ADDRESS  (0x76)
 
 #define VERSION "1.0"
-#define BMP_ADDRESS 0x76                             // default is 0x77
-#define MAH_CALIBRATION_FACTOR               1.0f    //used to calibrate mAh reading.
-#define SPEED_IN_KILOMETERS_PER_HOUR                 //if commented out defaults to m/s
-#define IMPERIAL_UNITS                               //Altitude in feet, distance to home in miles.
+#define BMP_ADDRESS 0x76              // default is 0x77
+#define MAH_CALIBRATION_FACTOR 1.0f   //used to calibrate mAh reading.
+#define SPEED_IN_KILOMETERS_PER_HOUR  //if commented out defaults to m/s
+#define IMPERIAL_UNITS                //Altitude in feet, distance to home in miles.
+#define FC_FIRMWARE_NAME "Betaflight"
+#define FC_FIRMWARE_IDENTIFIER "BTFL"
 
 #ifdef USE_GPS
 #include <TinyGPS++.h>
@@ -62,11 +64,11 @@ static const uint32_t GPSBaud = 9600;
 #include <SPI.h>
 #include <FS.h>
 #include <time.h>
-static const uint8_t fileServerModePin = D3; //Pin used to check what mode the program should start in, if high the filesystem server will be started
+static const uint8_t fileServerModePin = D3;  //Pin used to check what mode the program should start in, if high the filesystem server will be started
 static bool fileServerOn = false;
 static uint32_t gpsLogInterval = 500;
 String ap_ssid = "QLiteOSD";
-static const char* ap_psk = "12345678";
+static const char *ap_psk = "12345678";
 static File gpsLogFile;
 static bool fsInit = false;
 static bool fileStarted = false;
@@ -76,7 +78,7 @@ static bool gpsLoggingStarted = false;
 struct GPS_LOG_FRAME {
   float latitude;
   float longitude;
-  float altitude; //gpx uses meters for altitude
+  float altitude;  //gpx uses meters for altitude
   float heading;
   float speed;
 };
@@ -93,7 +95,7 @@ SoftwareSerial gpsSerial(gps_RX_pin, gps_TX_pin);
 
 HardwareSerial &mspSerial = Serial;
 MSP msp;
-Adafruit_BMP280 bme; // I2C
+Adafruit_BMP280 bme;  // I2C
 
 //Altitude BMP
 const float PRESSURE = 1013.25;  // local air pressure
@@ -101,31 +103,32 @@ float HomeAlt = 0.0;
 int sampleCount = 0;
 int lastCount = 0;
 float altSamples = 0.0;
-static const uint8_t armAltitude = 150; // Centimeters high at witch arm signal is sent to DJI goggles
+static const uint8_t armAltitude = 150;  // Centimeters high at witch arm signal is sent to DJI goggles
 boolean lightOn = true;
 
 //Voltage and Battery Reading
 #ifdef ESP8266
-const float arduinoVCC = 3.17; //Measured ESP8266 3.3 pin voltage
+const float arduinoVCC = 3.17;  //Measured ESP8266 3.3 pin voltage
 #else
-const float arduinoVCC = 5.0; //Measured Arduino 5V pin voltage
+const float arduinoVCC = 5.0;  //Measured Arduino 5V pin voltage
 #endif
-float ValueR1 = 7500; //7.5K Resistor
-float ValueR2 = 30000; //30K Resistor
+float ValueR1 = 7500;   //7.5K Resistor
+float ValueR2 = 30000;  //30K Resistor
 const int alanogPin = A0;
 float averageVoltage = 0;
 int sampleVoltageCount = 0;
 
 //Other
+char fcVariant[5] = "BTFL";
 char craftname[15] = "QLiteOSD";
 uint32_t previousMillis_MSP = 0;
 const uint32_t next_interval_MSP = 100;
-uint32_t custom_mode = 0;                       //flight mode
+uint32_t custom_mode = 0;  //flight mode
 uint8_t vbat = 0;
 float airspeed = 0;
 int16_t groundspeed = 0;
-int32_t relative_alt = 0;       // in milimeters
-uint32_t altitude_msp = 0;      // EstimatedAltitudeCm
+int32_t relative_alt = 0;   // in milimeters
+uint32_t altitude_msp = 0;  // EstimatedAltitudeCm
 uint16_t rssi = 0;
 uint8_t battery_remaining = 0;
 uint32_t flightModeFlags = 0x00000002;
@@ -144,13 +147,13 @@ double gps_home_lat = 0;
 int32_t gps_home_alt = 0;
 int16_t roll_angle = 0;
 int16_t pitch_angle = 0;
-uint32_t distanceToHome = 0;      // distance to home in meters
-int16_t directionToHome = 0;      // direction to home in degrees
-uint8_t fix_type = 0;             // < 0-1: no fix, 2: 2D fix, 3: 3D fix
+uint32_t distanceToHome = 0;  // distance to home in meters
+int16_t directionToHome = 0;  // direction to home in degrees
+uint8_t fix_type = 0;         // < 0-1: no fix, 2: 2D fix, 3: 3D fix
 uint8_t batteryCellCount = 3;
 uint16_t batteryCapacity = 2200;
 uint8_t legacyBatteryVoltage = 0;
-uint8_t batteryState = 0;         // voltage color 0==white, 1==red
+uint8_t batteryState = 0;  // voltage color 0==white, 1==red
 uint16_t batteryVoltage = 0;
 int16_t heading = 0;
 float dt = 0;
@@ -166,28 +169,29 @@ uint16_t blink_sats_blank_pos = 234;
 uint32_t previousFlightMode = custom_mode;
 uint8_t srtCounter = 1;
 uint8_t thr_position = 0;
-float wind_direction = 0;   // wind direction (degrees)
-float wind_speed = 0;       // wind speed in ground plane (m/s)
+float wind_direction = 0;  // wind direction (degrees)
+float wind_speed = 0;      // wind speed in ground plane (m/s)
 float relative_wind_direction = 0;
 float climb_rate = 0;
 
-msp_battery_state_t battery_state = {0};
-msp_name_t name = {0};
-msp_fc_version_t fc_version = {0};
+msp_battery_state_t battery_state = { 0 };
+msp_name_t name = { 0 };
+msp_fc_version_t fc_version = { 0 };
+msp_fc_variant_t fc_variant = { 0 };
 //msp_status_BF_t status_BF = {0};
-msp_status_DJI_t status_DJI = {0};
-msp_analog_t analog = {0};
-msp_raw_gps_t raw_gps = {0};
-msp_comp_gps_t comp_gps = {0};
-msp_attitude_t attitude = {0};
-msp_altitude_t altitude = {0};
+msp_status_DJI_t status_DJI = { 0 };
+msp_analog_t analog = { 0 };
+msp_raw_gps_t raw_gps = { 0 };
+msp_comp_gps_t comp_gps = { 0 };
+msp_attitude_t attitude = { 0 };
+msp_altitude_t altitude = { 0 };
 
 
 /* ----------------------------------------------------- */
 void setup() {
   Serial.begin(115200);
   msp.begin(mspSerial);
-  bme.begin(BMP_ADDRESS);  //Default Address 0x77 
+  bme.begin(BMP_ADDRESS);  //Default Address 0x77
   pinMode(LED_BUILTIN, OUTPUT);
 #ifdef LOG_GPS
   if (SPIFFS.begin()) {
@@ -204,22 +208,22 @@ void setup() {
 
   status_DJI.cycleTime = 0x0080;
   status_DJI.i2cErrorCounter = 0;
-  status_DJI.sensor =0x23;
-  status_DJI.configProfileIndex =0;
+  status_DJI.sensor = 0x23;
+  status_DJI.configProfileIndex = 0;
   status_DJI.averageSystemLoadPercent = 7;
   status_DJI.accCalibrationAxisFlags = 0;
-  status_DJI.DJI_ARMING_DISABLE_FLAGS_COUNT    =  20;
-  status_DJI.djiPackArmingDisabledFlags = (1<<24);
-  flightModeFlags = 0x00000002; 
+  status_DJI.DJI_ARMING_DISABLE_FLAGS_COUNT = 20;
+  status_DJI.djiPackArmingDisabledFlags = (1 << 24);
+  flightModeFlags = 0x00000002;
 
   // Calibrate and Initialize Home Altitude
   altSamples = bme.readAltitude(PRESSURE);
 }
 
-msp_osd_config_t msp_osd_config = {0};
+msp_osd_config_t msp_osd_config = { 0 };
 
 void send_osd_config() {
-  
+
 #ifdef IMPERIAL_UNITS
   msp_osd_config.units = 0;
 #else
@@ -229,10 +233,10 @@ void send_osd_config() {
   msp_osd_config.osd_item_count = 56;
   msp_osd_config.osd_stat_count = 24;
   msp_osd_config.osd_timer_count = 2;
-  msp_osd_config.osd_warning_count = 16;              // 16
-  msp_osd_config.osd_profile_count = 1;              // 1
-  msp_osd_config.osdprofileindex = 1;                // 1
-  msp_osd_config.overlay_radio_mode = 0;             //  0
+  msp_osd_config.osd_warning_count = 16;  // 16
+  msp_osd_config.osd_profile_count = 1;   // 1
+  msp_osd_config.osdprofileindex = 1;     // 1
+  msp_osd_config.overlay_radio_mode = 0;  //  0
 
   msp_osd_config.osd_rssi_value_pos = osd_rssi_value_pos;
   msp_osd_config.osd_main_batt_voltage_pos = osd_main_batt_voltage_pos;
@@ -301,10 +305,10 @@ void invert_pos(uint16_t *pos1, uint16_t *pos2) {
   *pos2 = tmp_pos;
 }
 
-void set_flight_mode_flags() { 
-  if (flightModeFlags == 0x00000002) { 
-    if (relative_alt > armAltitude) { // if altitude is 1 meter or more then arm to record
-      flightModeFlags = 0x00000003;  // armed to start recording
+void set_flight_mode_flags() {
+  if (flightModeFlags == 0x00000002) {
+    if (relative_alt > armAltitude) {  // if altitude is 1 meter or more then arm to record
+      flightModeFlags = 0x00000003;    // armed to start recording
     }
   }
 }
@@ -314,15 +318,26 @@ void display_flight_mode() {
 }
 
 void send_msp_to_airunit() {
+  
+  //MSP_FC_VARIANT
+  memcpy(fc_variant.flightControlIdentifier, fcVariant, sizeof(fcVariant));
+  msp.send(MSP_FC_VARIANT, &fc_variant, sizeof(fc_variant));
+
+  //MSP_FC_VERSION
+  fc_version.versionMajor = 4;
+  fc_version.versionMinor = 1;
+  fc_version.versionPatchLevel = 1;
+  msp.send(MSP_FC_VERSION, &fc_version, sizeof(fc_version));
+
   //MSP_NAME
   memcpy(name.craft_name, craftname, sizeof(craftname));
   msp.send(MSP_NAME, &name, sizeof(name));
 
   //MSP_STATUS
   status_DJI.flightModeFlags = flightModeFlags;
-  status_DJI.armingFlags =0x0303;
+  status_DJI.armingFlags = 0x0303;
   msp.send(MSP_STATUS_EX, &status_DJI, sizeof(status_DJI));
-  status_DJI.armingFlags =0x0000;
+  status_DJI.armingFlags = 0x0000;
   msp.send(MSP_STATUS, &status_DJI, sizeof(status_DJI));
 
   //MSP_ANALOG
@@ -347,7 +362,7 @@ void send_msp_to_airunit() {
   raw_gps.lon = gps_lon;
   raw_gps.numSat = numSat;
   raw_gps.alt = gps_alt;
-  raw_gps.groundSpeed = groundspeed;       //in cm/s
+  raw_gps.groundSpeed = groundspeed;  //in cm/s
   msp.send(MSP_RAW_GPS, &raw_gps, sizeof(raw_gps));
 
   //MSP_COMP_GPS
@@ -356,13 +371,13 @@ void send_msp_to_airunit() {
   msp.send(MSP_COMP_GPS, &comp_gps, sizeof(comp_gps));
 
   //MSP_ATTITUDE
-  attitude.pitch = pitch_angle*10;
-  attitude.roll = roll_angle*10;
+  attitude.pitch = pitch_angle * 10;
+  attitude.roll = roll_angle * 10;
   msp.send(MSP_ATTITUDE, &attitude, sizeof(attitude));
 
   //MSP_ALTITUDE
-  altitude.estimatedActualPosition = relative_alt; 
-  altitude.estimatedActualVelocity = (int16_t)(climb_rate); //m/s to cm/s    
+  altitude.estimatedActualPosition = relative_alt;
+  altitude.estimatedActualVelocity = (int16_t)(climb_rate);  //m/s to cm/s
   msp.send(MSP_ALTITUDE, &altitude, sizeof(altitude));
 
   //MSP_OSD_CONFIG
@@ -371,10 +386,9 @@ void send_msp_to_airunit() {
 
 
 void blink_sats() {
-  if(general_counter % 900 == 0 && set_home == 1 && blink_sats_orig_pos > 2000){
+  if (general_counter % 900 == 0 && set_home == 1 && blink_sats_orig_pos > 2000) {
     invert_pos(&osd_gps_sats_pos, &blink_sats_blank_pos);
-  }
-  else if(set_home == 0){
+  } else if (set_home == 0) {
     osd_gps_sats_pos = blink_sats_orig_pos;
   }
 }
@@ -384,12 +398,12 @@ void show_text(char (*text)[15]) {
 }
 
 void set_battery_cells_number() {
-  if(vbat < 43)batteryCellCount = 1;
-  else if(vbat < 85)batteryCellCount = 2;
-  else if(vbat < 127)batteryCellCount = 3;
-  else if(vbat < 169)batteryCellCount = 4;
-  else if(vbat < 211)batteryCellCount = 5;
-  else if(vbat < 255)batteryCellCount = 6;
+  if (vbat < 43) batteryCellCount = 1;
+  else if (vbat < 85) batteryCellCount = 2;
+  else if (vbat < 127) batteryCellCount = 3;
+  else if (vbat < 169) batteryCellCount = 4;
+  else if (vbat < 211) batteryCellCount = 5;
+  else if (vbat < 255) batteryCellCount = 6;
 }
 
 void readAltitude() {
@@ -401,7 +415,7 @@ void readAltitude() {
 }
 
 void getAltitudeSample() {
-  relative_alt = (int)round(((altSamples / sampleCount) - HomeAlt)*100);
+  relative_alt = (int)round(((altSamples / sampleCount) - HomeAlt) * 100);
   lastCount = sampleCount;
   sampleCount = 0;
   altSamples = 0.0;
@@ -424,13 +438,14 @@ void calibrateHome() {
 }
 
 void readVoltage() {
-  int readValue = analogRead(alanogPin);  
-  averageVoltage += (readValue * (arduinoVCC / 1024)) * ( 1 + (ValueR2 / ValueR1));;
+  int readValue = analogRead(alanogPin);
+  averageVoltage += (readValue * (arduinoVCC / 1024)) * (1 + (ValueR2 / ValueR1));
+  ;
   sampleVoltageCount++;
 }
 
 void getVoltageSample() {
-  vbat = (int)((averageVoltage / sampleVoltageCount) *10);
+  vbat = (int)((averageVoltage / sampleVoltageCount) * 10);
   sampleVoltageCount = 0;
   averageVoltage = 0;
 }
@@ -445,7 +460,7 @@ void readGPS() {
     gps_lon = (int32_t)(gps.location.lng() * 10000000);
     numSat = gps.satellites.value();
     gps_alt = gps.altitude.meters();
-    groundspeed = (int16_t)(gps.speed.kmph() * 100000/3600);   //in cm/s
+    groundspeed = (int16_t)(gps.speed.kmph() * 100000 / 3600);  //in cm/s
     heading = gps.course.deg();
 
     if (set_home == 1 && gps.hdop.isValid() && gps.hdop.hdop() < 2) {
@@ -453,12 +468,12 @@ void readGPS() {
       gps_home_lon = gps.location.lng();
       set_home = 0;
     }
-    distanceToHome = (unsigned long)(TinyGPSPlus::distanceBetween(gps.location.lat(),gps.location.lng(),gps_home_lat,gps_home_lon));
-    directionToHome = TinyGPSPlus::courseTo(gps.location.lat(),gps.location.lng(),gps_home_lat,gps_home_lon);
-  } else if (gps.satellites.isValid()){
+    distanceToHome = (unsigned long)(TinyGPSPlus::distanceBetween(gps.location.lat(), gps.location.lng(), gps_home_lat, gps_home_lon));
+    directionToHome = TinyGPSPlus::courseTo(gps.location.lat(), gps.location.lng(), gps_home_lat, gps_home_lon);
+  } else if (gps.satellites.isValid()) {
     numSat = gps.satellites.value();
   }
-}      
+}
 #endif
 
 void loop() {
@@ -470,53 +485,53 @@ void loop() {
 #endif
 
   uint32_t currentMillis_MSP = millis();
-  
+
   readAltitude();
   readVoltage();
 #ifdef USE_GPS
-    readGPS();
+  readGPS();
 #endif
-  
+
   if ((uint32_t)(currentMillis_MSP - previousMillis_MSP) >= next_interval_MSP) {
-      previousMillis_MSP = currentMillis_MSP;
-      
+    previousMillis_MSP = currentMillis_MSP;
+
 #ifdef LOG_GPS
-      checkTurnOnFileServer();
-      logGPS();
+    checkTurnOnFileServer();
+    logGPS();
 #endif
-      
-      if (general_counter % 300 == 0) { // update the altitude and voltage values every 300ms
-        getAltitudeSample();
-        getVoltageSample();
-        if (lightOn) {
-          digitalWrite(LED_BUILTIN, LOW);
-        } else {
-          digitalWrite(LED_BUILTIN, HIGH);
-        }
-        lightOn = !lightOn;
+
+    if (general_counter % 300 == 0) {  // update the altitude and voltage values every 300ms
+      getAltitudeSample();
+      getVoltageSample();
+      if (lightOn) {
+        digitalWrite(LED_BUILTIN, LOW);
+      } else {
+        digitalWrite(LED_BUILTIN, HIGH);
       }
-      set_flight_mode_flags();
-      blink_sats();
- 
+      lightOn = !lightOn;
+    }
+    set_flight_mode_flags();
+    blink_sats();
+
 #ifdef DEBUG
-      debugPrint();
+    debugPrint();
 #else
-      send_msp_to_airunit(); 
+    send_msp_to_airunit();
 #endif
-      general_counter += next_interval_MSP;
+    general_counter += next_interval_MSP;
   }
-  if(custom_mode != previousFlightMode){
-      previousFlightMode = custom_mode;
-      display_flight_mode();
+  if (custom_mode != previousFlightMode) {
+    previousFlightMode = custom_mode;
+    display_flight_mode();
   }
-  
-  if(batteryCellCount == 0 && vbat > 0) {
+
+  if (batteryCellCount == 0 && vbat > 0) {
     set_battery_cells_number();
   }
-  
+
   //display flight mode every 10s
   if (general_counter % 10000 == 0) {
-    display_flight_mode();  
+    display_flight_mode();
   }
 }
 
@@ -526,9 +541,9 @@ void debugPrint() {
   mspSerial.print("Flight Mode: ");
   mspSerial.println(flightModeFlags);
   mspSerial.print("Voltage: ");
-  mspSerial.println(((double)vbat/10), 1); 
+  mspSerial.println(((double)vbat / 10), 1);
   mspSerial.print("Altitude (cm): ");
-  mspSerial.println(relative_alt); 
+  mspSerial.println(relative_alt);
   mspSerial.print("Sample Count / transmit: ");
   mspSerial.println(lastCount);
 #ifdef USE_GPS
@@ -563,11 +578,11 @@ void logGPS() {
     uint32_t maxNum = 1;
     Dir dir = SPIFFS.openDir("/");
     File file = dir.openFile("r");
-    while(dir.next()) {
+    while (dir.next()) {
       maxNum++;
     }
     String fileName = "/" + String(maxNum);
-    gpsLogFile = SPIFFS.open(fileName, "w"); //need to test what turning off without closing the file does
+    gpsLogFile = SPIFFS.open(fileName, "w");  //need to test what turning off without closing the file does
     if (gpsLogFile) {
       fileStarted = true;
     } else {
@@ -581,32 +596,32 @@ void logGPS() {
     if (gpsLoggingStarted == false) {
       if (gps.location.isValid()) {
         tm currentTime;
-        currentTime.tm_year = (gps.date.year())-1900;
-        currentTime.tm_mon = (gps.date.month())-1;
+        currentTime.tm_year = (gps.date.year()) - 1900;
+        currentTime.tm_mon = (gps.date.month()) - 1;
         currentTime.tm_mday = (gps.date.day());
         currentTime.tm_hour = (gps.time.hour());
         currentTime.tm_min = (gps.time.minute());
         currentTime.tm_sec = (gps.time.second());
 
         time_t timeStamp = mktime(&currentTime);
-        gpsLogFile.write((uint8_t*)&timeStamp,sizeof(time_t));
+        gpsLogFile.write((uint8_t *)&timeStamp, sizeof(time_t));
         gpsLoggingStarted = true;
       }
     }
     if (gpsLoggingStarted == true) {
       if (gps.location.isValid() && gps.location.lat() != 0.0) {
         GPS_LOG_FRAME logFrame;
-        logFrame.altitude = (altSamples / sampleCount); //altitude in meters
+        logFrame.altitude = (altSamples / sampleCount);  //altitude in meters
 
         logFrame.latitude = gps.location.lat();
         logFrame.longitude = gps.location.lng();
         logFrame.heading = gps.course.deg();
-        logFrame.speed = (gps.speed.kmph() * 1000.0f)/3600.0f;
+        logFrame.speed = (gps.speed.kmph() * 1000.0f) / 3600.0f;
         lastFrame = logFrame;
-        gpsLogFile.write((uint8_t*)&logFrame,sizeof(GPS_LOG_FRAME));
-      }else{
+        gpsLogFile.write((uint8_t *)&logFrame, sizeof(GPS_LOG_FRAME));
+      } else {
         if (lastFrame.latitude != 0.0f) {
-          gpsLogFile.write((uint8_t*)&lastFrame,sizeof(GPS_LOG_FRAME));
+          gpsLogFile.write((uint8_t *)&lastFrame, sizeof(GPS_LOG_FRAME));
         }
       }
     }
@@ -616,7 +631,7 @@ void logGPS() {
 void checkTurnOnFileServer() {
   if (digitalRead(fileServerModePin) == LOW && !fileServerOn) {
     onPinCount++;
-    if (onPinCount < 30) { // only turn on if held for 3 seconds
+    if (onPinCount < 30) {  // only turn on if held for 3 seconds
       return;
     }
     gpsSerial.end();
@@ -625,10 +640,10 @@ void checkTurnOnFileServer() {
     digitalWrite(LED_BUILTIN, LOW);
     ap_ssid += "-" + String(ESP.getChipId(), HEX);
     WiFi.softAP(((const char *)ap_ssid.c_str()), ap_psk);
-    webserver.on("/", showFiles); //Show all logged gps files
-    webserver.on("/download", downloadFile); //Convert and download a gpx file
-    webserver.on("/delete", deleteFiles); //Delete all files
-    webserver.on("/wifioff", turnWifiOff); //Turn off AP Wifi
+    webserver.on("/", showFiles);             //Show all logged gps files
+    webserver.on("/download", downloadFile);  //Convert and download a gpx file
+    webserver.on("/delete", deleteFiles);     //Delete all files
+    webserver.on("/wifioff", turnWifiOff);    //Turn off AP Wifi
     webserver.begin();
   }
   onPinCount = 0;
@@ -649,7 +664,7 @@ void sendHeader() {
   webserver.sendHeader("Expires", "-1");
   webserver.setContentLength(CONTENT_LENGTH_UNKNOWN);
   webserver.send(200, "text/html", "");
-  
+
   String html = "<!DOCTYPE HTML>";
   html += "<html><head><title>QLiteOSD</title><link rel='icon' href='data:;base64,='>";
   html += "<meta http-equiv='Content-Type' content='text/html; charset=UTF-8' />";
@@ -669,24 +684,24 @@ void sendFooter() {
 void showFiles() {
 
   if (fsInit == false) {
-    webserver.send(200,"text/html","Error: Filesystem failed to init!");
+    webserver.send(200, "text/html", "Error: Filesystem failed to init!");
     return;
   }
 
   sendHeader();
-  
+
   String webpage = "<h2>QLiteOSD v" + String(VERSION) + " GPS Log Files</h2><ul>";
 
   Dir dir = SPIFFS.openDir("/");
-  while(dir.next()) {
+  while (dir.next()) {
     String fileNum = dir.fileName();
     String fileName = fileNum;
     fileName.replace("/", "");
     fileName = "QLiteOSD_GPS_" + fileName + ".gpx";
     File file = dir.openFile("r");
     time_t time = 0;
-    file.readBytes((char*)&time,sizeof(time_t));
-    webpage += "<li><a href='download?download=" + fileNum + "'>" + fileName + "</a>  &nbsp;&nbsp;" + fileSize(file.size()) + "&nbsp;&nbsp;<span class='time'>"+ String(time) +"</span><br/></li>";
+    file.readBytes((char *)&time, sizeof(time_t));
+    webpage += "<li><a href='download?download=" + fileNum + "'>" + fileName + "</a>  &nbsp;&nbsp;" + fileSize(file.size()) + "&nbsp;&nbsp;<span class='time'>" + String(time) + "</span><br/></li>";
   };
 
   FSInfo fsInfo;
@@ -704,35 +719,35 @@ void showFiles() {
   sendFooter();
 }
 
-String fileSize(int bytes){
+String fileSize(int bytes) {
   String fsize = "";
-  if (bytes < 1024)                 fsize = String(bytes) + " B";
-  else if(bytes < (1024*1024))      fsize = roundValue(String(bytes/1024.0,3)) + " KB";
-  else if(bytes < (1024*1024*1024)) fsize = roundValue(String(bytes/1024.0/1024.0,3)) + " MB";
-  else                              fsize = roundValue(String(bytes/1024.0/1024.0/1024.0,3)) + " GB";
+  if (bytes < 1024) fsize = String(bytes) + " B";
+  else if (bytes < (1024 * 1024)) fsize = roundValue(String(bytes / 1024.0, 3)) + " KB";
+  else if (bytes < (1024 * 1024 * 1024)) fsize = roundValue(String(bytes / 1024.0 / 1024.0, 3)) + " MB";
+  else fsize = roundValue(String(bytes / 1024.0 / 1024.0 / 1024.0, 3)) + " GB";
   return fsize;
 }
 
 String roundValue(String inValue) {
   float x = inValue.toFloat();
-  long f = (long)(x*10L);
-  x = (float)f/10.0;
+  long f = (long)(x * 10L);
+  x = (float)f / 10.0;
   return String(x, 1);
 }
 
 void downloadFile() {
   static const String gpxheader = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<gpx version=\"1.0\">\n\t<name>QLiteOSD v" + String(VERSION) + "</name>\n\t<trk><name>QLiteOSDPath</name><number>1</number><trkseg>\n";
-  static const char* gpxcloser = "</trkseg></trk>\n</gpx>\n";
+  static const char *gpxcloser = "</trkseg></trk>\n</gpx>\n";
 
   if (webserver.args() > 0) {
     if (webserver.hasArg("download")) {
       String filename = webserver.arg(0);
-      File rawDataFile = SPIFFS.open(filename,"r");
+      File rawDataFile = SPIFFS.open(filename, "r");
       time_t startTime = 0;
-      rawDataFile.readBytes((char*)&startTime,sizeof(uint64_t));
+      rawDataFile.readBytes((char *)&startTime, sizeof(uint64_t));
       WiFiClient client = webserver.client();
       size_t fileSize = rawDataFile.size();
-      size_t numFrames = (fileSize/sizeof(GPS_LOG_FRAME));
+      size_t numFrames = (fileSize / sizeof(GPS_LOG_FRAME));
       client.print("HTTP/1.1 200 OK\r\n");
       client.print("Content-Disposition: attachment; filename=QLite_GPS_" + filename + ".gpx\r\n");
       client.print("Content-Type: application/octet-stream\r\n");
@@ -744,20 +759,20 @@ void downloadFile() {
       //client.write(sprintf(sizeWriteBuffer,"%X\n",sizeof(gpxheader)-2));
       client.print(gpxheader);
 
-      char buf[sizeof("0000-00-00T00:00:00.000Z")+5];
-      char fullbuf[sizeof("\t\t<trkpt lat=\"000.00000000\" lon=\"000.00000000\"><ele>0000</ele><time>0000-00-00T00:00:00.000Z</time><speed>000.000</speed><course>000.000</course></trkpt>")+30];
+      char buf[sizeof("0000-00-00T00:00:00.000Z") + 5];
+      char fullbuf[sizeof("\t\t<trkpt lat=\"000.00000000\" lon=\"000.00000000\"><ele>0000</ele><time>0000-00-00T00:00:00.000Z</time><speed>000.000</speed><course>000.000</course></trkpt>") + 30];
       GPS_LOG_FRAME logData;
-      for (size_t i = 0; i<numFrames; i++) {
+      for (size_t i = 0; i < numFrames; i++) {
         String gpxFrame;
-        time_t currentTime = startTime+(i/2);
+        time_t currentTime = startTime + (i / 2);
         strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%S", gmtime(&currentTime));
-        char* msecVal = ".000";
-        if (i%2 != 0) { //Currently hardcoded for 500 ms intervals
+        char *msecVal = ".000";
+        if (i % 2 != 0) {  //Currently hardcoded for 500 ms intervals
           msecVal = ".500";
         }
-        String fullTime = String(buf)+String(msecVal)+"Z";
-        rawDataFile.readBytes((char*)&logData,sizeof(GPS_LOG_FRAME));
-        sprintf(fullbuf,"\t\t<trkpt lat=\"%f\" lon=\"%f\"><ele>%f</ele><time>%s</time><speed>%f</speed><course>%f</course></trkpt>\n",logData.latitude,logData.longitude,logData.altitude,fullTime.c_str(),logData.speed,logData.heading);
+        String fullTime = String(buf) + String(msecVal) + "Z";
+        rawDataFile.readBytes((char *)&logData, sizeof(GPS_LOG_FRAME));
+        sprintf(fullbuf, "\t\t<trkpt lat=\"%f\" lon=\"%f\"><ele>%f</ele><time>%s</time><speed>%f</speed><course>%f</course></trkpt>\n", logData.latitude, logData.longitude, logData.altitude, fullTime.c_str(), logData.speed, logData.heading);
         //client.write(sprintf(sizeWriteBuffer,"%X\n",strlen(fullbuf)-1));
         client.write(fullbuf);
       }
