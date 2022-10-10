@@ -93,6 +93,11 @@ SoftwareSerial gpsSerial(gps_RX_pin, gps_TX_pin);
 //#define STORE_GPS_LOCATION_IN_SUBTITLE_FILE        //comment out to disable. Stores GPS location in the goggles .srt file in place of the "uavBat:" field at a slow rate of ~2-3s per GPS coordinate
 #endif
 
+#ifdef USE_PWM_ARM
+static const int pwm_arm_pin = D5;
+static int triggerValue = 1800;
+#endif
+
 HardwareSerial &mspSerial = Serial;
 MSP msp;
 Adafruit_BMP280 bme;  // I2C
@@ -204,6 +209,10 @@ void setup() {
   gpsSerial.begin(GPSBaud);
 #endif
 
+#ifdef USE_PWM_ARM
+  pinMode(pwm_arm_pin, INPUT_PULLUP);
+#endif
+
   delay(1000);
 
   status_DJI.cycleTime = 0x0080;
@@ -306,12 +315,32 @@ void invert_pos(uint16_t *pos1, uint16_t *pos2) {
 }
 
 void set_flight_mode_flags() {
-  if (flightModeFlags == 0x00000002) {
-    if (relative_alt > armAltitude) {  // if altitude is 1 meter or more then arm to record
+#ifdef USE_PWM_ARM 
+    //USE PWM signal to ARM
+    volatile int pwmValue = readChannel(pwm_arm_pin, 1000, 2000, 0);
+    if ((flightModeFlags == 0x00000002) && pwmValue >= triggerValue) {
+      flightModeFlags = 0x00000003;    // armed to start recording
+    } else if ((flightModeFlags == 0x00000003) && pwmValue < triggerValue) {        
+      flightModeFlags = 0x00000002;    // disarm
+    }
+#else  
+    //USE Altitude to Arm  
+    if ((flightModeFlags == 0x00000002) && relative_alt > armAltitude) {  // if altitude is 1 meter or more then arm to record
       flightModeFlags = 0x00000003;    // armed to start recording
     }
-  }
+#endif
 }
+
+#ifdef USE_PWM_ARM
+// Read the number of a specified channel and convert to the range provided.
+// If the channel is off, return the default value
+int readChannel(int channelInput, int minLimit, int maxLimit, int defaultValue){
+  int ch = pulseIn(channelInput, HIGH, 30000);
+  if (ch < 100) return defaultValue;
+  return map(ch, 1000, 2000, minLimit, maxLimit);
+}
+#endif
+
 
 void display_flight_mode() {
   show_text(&craftname);
