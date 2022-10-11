@@ -140,7 +140,7 @@ uint32_t flightModeFlags = 0x00000002;
 int16_t amperage = 0;
 uint16_t mAhDrawn = 0;
 float f_mAhDrawn = 0.0;
-uint8_t numSat = 99;
+uint8_t numSat = 0;
 uint8_t pid_roll[3];
 uint8_t pid_pitch[3];
 uint8_t pid_yaw[3];
@@ -416,7 +416,7 @@ void send_msp_to_airunit() {
 
 void blink_sats() {
   if (general_counter % 900 == 0 && set_home == 1 && blink_sats_orig_pos > 2000) {
-    invert_pos(&osd_gps_sats_pos, &blink_sats_blank_pos);
+    invert_pos(&osd_gps_sats_pos, &blink_sats_blank_pos); 
   } else if (set_home == 0) {
     osd_gps_sats_pos = blink_sats_orig_pos;
   }
@@ -487,7 +487,9 @@ void readGPS() {
   if (gps.location.isValid()) {
     gps_lat = (int32_t)(gps.location.lat() * 10000000);
     gps_lon = (int32_t)(gps.location.lng() * 10000000);
-    numSat = gps.satellites.value();
+    if (gps.satellites.isValid()) {    
+      numSat = gps.satellites.value();
+    }
     gps_alt = gps.altitude.meters();
     groundspeed = (int16_t)(gps.speed.kmph() * 100000 / 3600);  //in cm/s
     heading = gps.course.deg();
@@ -499,8 +501,6 @@ void readGPS() {
     }
     distanceToHome = (unsigned long)(TinyGPSPlus::distanceBetween(gps.location.lat(), gps.location.lng(), gps_home_lat, gps_home_lon));
     directionToHome = TinyGPSPlus::courseTo(gps.location.lat(), gps.location.lng(), gps_home_lat, gps_home_lon);
-  } else if (gps.satellites.isValid()) {
-    numSat = gps.satellites.value();
   }
 }
 #endif
