@@ -113,7 +113,7 @@ boolean lightOn = true;
 
 //Voltage and Battery Reading
 #ifdef ESP8266
-const float arduinoVCC = 3.17;  //Measured ESP8266 3.3 pin voltage
+const float arduinoVCC = 3.25;  //Measured ESP8266 3.3 pin voltage
 #else
 const float arduinoVCC = 5.0;  //Measured Arduino 5V pin voltage
 #endif
@@ -320,8 +320,8 @@ void set_flight_mode_flags() {
     volatile int pwmValue = readChannel(pwm_arm_pin, 1000, 2000, 0);
     if ((flightModeFlags == 0x00000002) && pwmValue >= triggerValue) {
       flightModeFlags = 0x00000003;    // armed to start recording
-    } else if ((flightModeFlags == 0x00000003) && pwmValue < triggerValue) {        
-      flightModeFlags = 0x00000002;    // disarm
+    } else if ((flightModeFlags == 0x00000003) && pwmValue < triggerValue && general_counter % 3000 == 0) {        
+      flightModeFlags = 0x00000002;    // disarm after 3 second delay
     }
 #else  
     //USE Altitude to Arm  
