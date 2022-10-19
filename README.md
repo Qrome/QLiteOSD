@@ -8,6 +8,7 @@ FAQ:  https://github.com/Qrome/QLiteOSD/blob/master/README.md#faq
 
 Painless360 Build: https://www.youtube.com/watch?v=KWHZCemLLxw  
 Painless360 Compiling and Customization: https://www.youtube.com/watch?v=f42vbrB-Z7Y  
+Andrew Newton Video: https://www.youtube.com/watch?v=QzN6kRvfUFk  
 
 ## Components
 * Wemos D1 Mini (ESP8266) board https://amzn.to/3wW6TIj
