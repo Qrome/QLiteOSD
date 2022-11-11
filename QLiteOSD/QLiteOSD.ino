@@ -39,7 +39,7 @@
 #include "OSD_positions_config.h"
 #include <Adafruit_BMP280.h>  // May need to adjust for I2C address #define BMP280_ADDRESS  (0x76)
 
-#define VERSION "1.0"
+#define VERSION "1.2"
 #define BMP_ADDRESS 0x76              // default is 0x77
 #define MAH_CALIBRATION_FACTOR 1.0f   //used to calibrate mAh reading.
 #define SPEED_IN_KILOMETERS_PER_HOUR  //if commented out defaults to m/s
@@ -52,7 +52,7 @@
 #include <SoftwareSerial.h>
 
 #ifdef ESP8266
-static const int gps_RX_pin = D7, gps_TX_pin = D8;
+static const int gps_RX_pin = D8, gps_TX_pin = D7; // these were swapped in 1.2 to match board
 #else
 static const int gps_RX_pin = 4, gps_TX_pin = 3;
 #endif
