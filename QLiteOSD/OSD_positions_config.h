@@ -14,6 +14,7 @@
 
 //currently working elements
 const uint16_t osd_altitude_pos = 2240;
+const uint16_t osd_numerical_vario_pos = 2273;
 const uint16_t osd_avg_cell_voltage_pos = 2145;
 const uint16_t osd_main_batt_voltage_pos = 2113;
 const uint16_t osd_crosshairs_pos = 2254;
@@ -22,10 +23,10 @@ const uint16_t osd_craft_name_pos = 2048;
 #ifdef USE_GPS
 uint16_t osd_gps_sats_pos = 2074;
 const uint16_t osd_home_dir_pos = 2095;
-const uint16_t osd_home_dist_pos = 2305;
-const uint16_t osd_gps_speed_pos = 2273;
-const uint16_t osd_gps_lat_pos = 2400;
-const uint16_t osd_gps_lon_pos = 2432;
+const uint16_t osd_home_dist_pos = 2337;
+const uint16_t osd_gps_speed_pos = 2305;
+const uint16_t osd_gps_lat_pos = 2432;
+const uint16_t osd_gps_lon_pos = 2464;
 #else
 uint16_t osd_gps_sats_pos = 234;
 const uint16_t osd_home_dir_pos = 234;
@@ -42,7 +43,6 @@ const uint16_t osd_display_name_pos = 234;
 const uint16_t osd_flymode_pos = 234;
 const uint16_t osd_current_draw_pos = 234;
 const uint16_t osd_mah_drawn_pos = 234;
-const uint16_t osd_numerical_vario_pos = 234;
 
 //not implemented or not available
 const uint16_t osd_throttle_pos_pos = 234;

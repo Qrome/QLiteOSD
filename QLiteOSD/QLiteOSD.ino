@@ -39,7 +39,7 @@
 #include "OSD_positions_config.h"
 #include <Adafruit_BMP280.h>  // May need to adjust for I2C address #define BMP280_ADDRESS  (0x76)
 
-#define VERSION "1.2"
+#define VERSION "1.3"
 #define BMP_ADDRESS 0x76              // default is 0x77
 #define MAH_CALIBRATION_FACTOR 1.0f   //used to calibrate mAh reading.
 #define SPEED_IN_KILOMETERS_PER_HOUR  //if commented out defaults to m/s
@@ -109,6 +109,7 @@ int sampleCount = 0;
 int lastCount = 0;
 float altSamples = 0.0;
 static const uint8_t armAltitude = 150;  // Centimeters high at witch arm signal is sent to DJI goggles
+int16_t lastAltRead = 0; //cm
 boolean lightOn = true;
 
 //Voltage and Battery Reading
@@ -177,7 +178,7 @@ uint8_t thr_position = 0;
 float wind_direction = 0;  // wind direction (degrees)
 float wind_speed = 0;      // wind speed in ground plane (m/s)
 float relative_wind_direction = 0;
-float climb_rate = 0;
+int16_t climb_rate = 0;
 
 msp_battery_state_t battery_state = { 0 };
 msp_name_t name = { 0 };
@@ -444,10 +445,12 @@ void readAltitude() {
 }
 
 void getAltitudeSample() {
+  lastAltRead = (int16_t)relative_alt;
   relative_alt = (int)round(((altSamples / sampleCount) - HomeAlt) * 100);
   lastCount = sampleCount;
   sampleCount = 0;
   altSamples = 0.0;
+  climb_rate = (lastAltRead - relative_alt) * 5; // assuming 200ms samples needs to be cm/s
 }
 
 void calibrateHome() {
@@ -469,7 +472,6 @@ void calibrateHome() {
 void readVoltage() {
   int readValue = analogRead(alanogPin);
   averageVoltage += (readValue * (arduinoVCC / 1024)) * (1 + (ValueR2 / ValueR1));
-  ;
   sampleVoltageCount++;
 }
 
@@ -529,7 +531,7 @@ void loop() {
     logGPS();
 #endif
 
-    if (general_counter % 300 == 0) {  // update the altitude and voltage values every 300ms
+    if (general_counter % 200 == 0) {  // update the altitude and voltage values every 200ms
       getAltitudeSample();
       getVoltageSample();
       if (lightOn) {
@@ -573,6 +575,8 @@ void debugPrint() {
   mspSerial.println(((double)vbat / 10), 1);
   mspSerial.print("Altitude (cm): ");
   mspSerial.println(relative_alt);
+  mspSerial.print("Climb Rate (cm/s): ");
+  mspSerial.println(climb_rate);
   mspSerial.print("Sample Count / transmit: ");
   mspSerial.println(lastCount);
 #ifdef USE_GPS
