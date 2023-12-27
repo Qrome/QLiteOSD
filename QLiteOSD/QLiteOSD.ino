@@ -520,6 +520,7 @@ void readGPS() {
 void loop() {
 #ifdef LOG_GPS
   if (fileServerOn) {
+    digitalWrite(LED_BUILTIN, LOW);
     webserver.handleClient();
     return;
   }
@@ -678,13 +679,13 @@ void logRemoveOldFiles(uint32_t fileLimit) {
   //If next file is 16, we need to remove 16-10=6 files to get the FS back to 9 files
   //The process for this will be removing files 1-6, Then renaming 7 -> 1, 8 -> 2,...,and 15->9, so 10 will be the next file created when the system is armed
   int filesToRemove = nextFile-fileLimit; //16 - 10 = 6
-  for (int i = 1; i<filesToRemove+1;i++) {
-    SPIFFS.remove(String("/")+String(i));
+  for (int i = 1; i < filesToRemove + 1; i++) {
+    SPIFFS.remove(String("/") + String(i));
   }
   int filesToRename = fileLimit;
   for (int i = 1; i<filesToRename; i++) {
-    String newFile = String("/")+String(i);
-    String oldFile = String("/")+String(i+filesToRemove);
+    String newFile = String("/") + String(i);
+    String oldFile = String("/") + String(i + filesToRemove);
     SPIFFS.rename(oldFile,newFile);
   }
 }
@@ -726,7 +727,6 @@ void checkTurnOnFileServer() {
     gpsSerial.end();
     //Begin fileserver
     fileServerOn = true;
-    digitalWrite(LED_BUILTIN, LOW);
     ap_ssid += "-" + String(ESP.getChipId(), HEX);
     WiFi.softAP(((const char *)ap_ssid.c_str()), ap_psk);
     webserver.on("/", showFiles);             //Show all logged gps files
@@ -734,6 +734,7 @@ void checkTurnOnFileServer() {
     webserver.on("/delete", deleteFiles);     //Delete all files
     webserver.on("/wifioff", turnWifiOff);    //Turn off AP Wifi
     webserver.begin();
+    digitalWrite(LED_BUILTIN, LOW);
   }
   onPinCount = 0;
 }
@@ -744,7 +745,6 @@ void turnWifiOff() {
   fileServerOn = false;
   digitalWrite(LED_BUILTIN, HIGH);
   WiFi.softAPdisconnect(true);
-  // gpsSerial.begin(GPSBaud);
   ESP.reset();
 }
 
@@ -771,6 +771,10 @@ void sendFooter() {
   webserver.client().stop();
 }
 
+String getFileName() {
+  return "QL-" + String(ESP.getChipId(), HEX) + "-";
+}
+
 void showFiles() {
 
   if (fsInit == false) {
@@ -795,7 +799,7 @@ void showFiles() {
     File file = dir.openFile("r");
     time_t time = 0;
     file.readBytes((char *)&time, sizeof(time_t));
-    fileName = "QLiteOSD_GPS_" + fileName + ".gpx";
+    fileName = getFileName() + String(time) + ".gpx";
     webpage += "<li><a href='download?download=" + fileNum + "'>" + fileName + "</a>  &nbsp;&nbsp;" + fileSize(file.size()) + "&nbsp;&nbsp;<span class='time'>" + String(time) + "</span><br/></li>";
   };
 
@@ -831,7 +835,6 @@ String roundValue(String inValue) {
 }
 
 void downloadFile() {
-  static const String gpxheader = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<gpx version=\"1.0\">\n\t<name>QLiteOSD v" + String(VERSION) + "</name>\n\t<trk><name>QLiteOSDPath</name><number>1</number><trkseg>\n";
   static const char *gpxcloser = "</trkseg></trk>\n</gpx>\n";
 
   if (webserver.args() > 0) {
@@ -844,13 +847,15 @@ void downloadFile() {
       size_t fileSize = rawDataFile.size();
       size_t numFrames = (fileSize / sizeof(GPS_LOG_FRAME));
       client.print("HTTP/1.1 200 OK\r\n");
-      client.print("Content-Disposition: attachment; filename=QLite_GPS_" + filename + ".gpx\r\n");
+      client.print("Content-Disposition: attachment; filename=" + getFileName() + String(startTime) + ".gpx\r\n");
       client.print("Content-Type: application/octet-stream\r\n");
       //client.print("Content-Length: 0"\r\n");
       client.print("Connection: close\r\n");
       client.print("Access-Control-Allow-Origin: *\r\n");
       client.print("\r\n");
       char sizeWriteBuffer[10];
+      static const String gpxheader = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<gpx version=\"1.0\">\n\t<name>QLiteOSD v" + String(VERSION) + 
+        "</name>\n\t<trk><name>" + getFileName() + String(startTime) + "</name><number>1</number><trkseg>\n";
       //client.write(sprintf(sizeWriteBuffer,"%X\n",sizeof(gpxheader)-2));
       client.print(gpxheader);
 
