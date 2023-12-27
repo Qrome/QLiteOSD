@@ -39,7 +39,7 @@ CONSEQUENTIAL DAMAGES, FOR ANY REASON WHATSOEVER.
 * Voltage Sensor on A0 analog pin (use a 30K/7.5K Resistor divider)
 * Set Mini-360 DC-DC Buck Converter Step Down Module to 5V
 * Place the MSP folder under libraries in your local Arduino/libraries path  
-* GPS Logging to Wemos D1 Mini file system
+* GPS Logging to Wemos D1 Mini file system (Version 1.4 Logs only the last 10 flights)
 * Download GPS logs through WiFi Access Point
 * ESP866 D3 pin grounded for 3 seconds will turn on WiFi mode (turns off OSD mode)
 * You can move the OSD items around the screen by using the chart below and setting the value in the OSD_positions_config.h file.  If you wish to hide an option use the value 234.  Note: not all OSD options are supported by DJI FPV goggles.

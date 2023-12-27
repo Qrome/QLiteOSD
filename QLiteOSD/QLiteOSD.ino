@@ -6,7 +6,7 @@
  *
  * ------------------------------------------------
  *
- * Copyright (C) 2022 David Payne
+ * Copyright (C) 2023 David Payne
  * 
  * This software is based on and uses software published by Paul Kurucz (pkuruz):opentelem_to_bst_bridge
  * as well as software d3ngit : djihdfpv_mavlink_to_msp_V2 and crashsalot : VOT_to_DJIFPV
@@ -39,7 +39,7 @@
 #include "OSD_positions_config.h"
 #include <Adafruit_BMP280.h>  // May need to adjust for I2C address #define BMP280_ADDRESS  (0x76)
 
-#define VERSION "1.3"
+#define VERSION "1.4"
 #define BMP_ADDRESS 0x76              // default is 0x77
 #define MAH_CALIBRATION_FACTOR 1.0f   //used to calibrate mAh reading.
 #define SPEED_IN_KILOMETERS_PER_HOUR  //if commented out defaults to m/s
@@ -52,7 +52,7 @@
 #include <SoftwareSerial.h>
 
 #ifdef ESP8266
-static const int gps_RX_pin = D8, gps_TX_pin = D7; // these were swapped in 1.2 to match board
+static const int gps_RX_pin = D8, gps_TX_pin = D7;  // these were swapped in 1.2 to match board
 #else
 static const int gps_RX_pin = 4, gps_TX_pin = 3;
 #endif
@@ -94,8 +94,12 @@ SoftwareSerial gpsSerial(gps_RX_pin, gps_TX_pin);
 #endif
 
 #ifdef USE_PWM_ARM
+#ifdef ESP8266
 static const int pwm_arm_pin = D5;
-static int triggerValue = 1800;
+#else
+static const int pwm_arm_pin = 10;
+#endif
+static int triggerValue = 1700;
 #endif
 
 HardwareSerial &mspSerial = Serial;
@@ -109,14 +113,14 @@ int sampleCount = 0;
 int lastCount = 0;
 float altSamples = 0.0;
 static const uint8_t armAltitude = 150;  // Centimeters high at witch arm signal is sent to DJI goggles
-int16_t lastAltRead = 0; //cm
+int16_t lastAltRead = 0;                 //cm
 boolean lightOn = true;
 
 //Voltage and Battery Reading
 #ifdef ESP8266
 const float arduinoVCC = 3.25;  //Measured ESP8266 3.3 pin voltage
 #else
-const float arduinoVCC = 5.0;  //Measured Arduino 5V pin voltage
+const float arduinoVCC = 4.8;  //Measured Arduino 5V pin voltage
 #endif
 float ValueR1 = 7500;   //7.5K Resistor
 float ValueR2 = 30000;  //30K Resistor
@@ -202,6 +206,11 @@ void setup() {
 #ifdef LOG_GPS
   if (SPIFFS.begin()) {
     fsInit = true;
+    logRemoveOldFiles(10);
+  }else {
+#ifdef DEBUG
+    Serial.println("FS Init Fail!!");
+#endif
   }
   pinMode(fileServerModePin, INPUT);
 #endif
@@ -316,26 +325,27 @@ void invert_pos(uint16_t *pos1, uint16_t *pos2) {
 }
 
 void set_flight_mode_flags() {
-#ifdef USE_PWM_ARM 
-    //USE PWM signal to ARM
-    volatile int pwmValue = readChannel(pwm_arm_pin, 1000, 2000, 0);
-    if ((flightModeFlags == 0x00000002) && pwmValue >= triggerValue) {
-      flightModeFlags = 0x00000003;    // armed to start recording
-    } else if ((flightModeFlags == 0x00000003) && pwmValue < triggerValue && general_counter % 3000 == 0) {        
-      flightModeFlags = 0x00000002;    // disarm after 3 second delay
-    }
-#else  
-    //USE Altitude to Arm  
-    if ((flightModeFlags == 0x00000002) && relative_alt > armAltitude) {  // if altitude is 1 meter or more then arm to record
-      flightModeFlags = 0x00000003;    // armed to start recording
-    }
+#ifdef USE_PWM_ARM
+  //USE PWM signal to ARM
+  volatile int pwmValue = readChannel(pwm_arm_pin, 1000, 2000, 0);
+  if ((flightModeFlags == 0x00000002) && pwmValue >= triggerValue) {
+    flightModeFlags = 0x00000003;  // armed to start recording
+  } else if ((flightModeFlags == 0x00000003) && pwmValue < triggerValue && general_counter % 3000 == 0) {
+    flightModeFlags = 0x00000002;  // disarm after 3 second delay
+  }
+#else
+  //USE Altitude to Arm
+  // flightModeFlags = 0x00000003; //Uncomment this to automatically arm on start
+  if ((flightModeFlags == 0x00000002) && relative_alt > armAltitude) {  // if altitude is 1 meter or more then arm to record
+    flightModeFlags = 0x00000003;                                       // armed to start recording
+  }
 #endif
 }
 
 #ifdef USE_PWM_ARM
 // Read the number of a specified channel and convert to the range provided.
 // If the channel is off, return the default value
-int readChannel(int channelInput, int minLimit, int maxLimit, int defaultValue){
+int readChannel(int channelInput, int minLimit, int maxLimit, int defaultValue) {
   int ch = pulseIn(channelInput, HIGH, 30000);
   if (ch < 100) return defaultValue;
   return map(ch, 1000, 2000, minLimit, maxLimit);
@@ -348,7 +358,7 @@ void display_flight_mode() {
 }
 
 void send_msp_to_airunit() {
-  
+
   //MSP_FC_VARIANT
   memcpy(fc_variant.flightControlIdentifier, fcVariant, sizeof(fcVariant));
   msp.send(MSP_FC_VARIANT, &fc_variant, sizeof(fc_variant));
@@ -371,7 +381,7 @@ void send_msp_to_airunit() {
   msp.send(MSP_STATUS, &status_DJI, sizeof(status_DJI));
 
   //MSP_ANALOG
-  analog.vbat = vbat;
+  analog.vbat = (uint8_t)vbat;
   analog.rssi = rssi;
   analog.amperage = amperage;
   analog.mAhDrawn = mAhDrawn;
@@ -379,12 +389,12 @@ void send_msp_to_airunit() {
 
   //MSP_BATTERY_STATE
   battery_state.amperage = amperage;
-  battery_state.batteryVoltage = vbat * 10;
+  battery_state.batteryVoltage = (uint8_t)vbat * 10;
   battery_state.mAhDrawn = mAhDrawn;
   battery_state.batteryCellCount = batteryCellCount;
   battery_state.batteryCapacity = batteryCapacity;
   battery_state.batteryState = batteryState;
-  battery_state.legacyBatteryVoltage = vbat;
+  battery_state.legacyBatteryVoltage = (uint8_t)vbat;
   msp.send(MSP_BATTERY_STATE, &battery_state, sizeof(battery_state));
 
   //MSP_RAW_GPS
@@ -417,7 +427,7 @@ void send_msp_to_airunit() {
 
 void blink_sats() {
   if (general_counter % 900 == 0 && set_home == 1 && blink_sats_orig_pos > 2000) {
-    invert_pos(&osd_gps_sats_pos, &blink_sats_blank_pos); 
+    invert_pos(&osd_gps_sats_pos, &blink_sats_blank_pos);
   } else if (set_home == 0) {
     osd_gps_sats_pos = blink_sats_orig_pos;
   }
@@ -450,7 +460,7 @@ void getAltitudeSample() {
   lastCount = sampleCount;
   sampleCount = 0;
   altSamples = 0.0;
-  climb_rate = (lastAltRead - relative_alt) * 5; // assuming 200ms samples needs to be cm/s
+  climb_rate = (lastAltRead - relative_alt) * 5;  // assuming 200ms samples needs to be cm/s
 }
 
 void calibrateHome() {
@@ -476,7 +486,7 @@ void readVoltage() {
 }
 
 void getVoltageSample() {
-  vbat = (int)((averageVoltage / sampleVoltageCount) * 10);
+  vbat = (uint8_t)((averageVoltage / sampleVoltageCount) * 10);
   sampleVoltageCount = 0;
   averageVoltage = 0;
 }
@@ -489,7 +499,7 @@ void readGPS() {
   if (gps.location.isValid()) {
     gps_lat = (int32_t)(gps.location.lat() * 10000000);
     gps_lon = (int32_t)(gps.location.lng() * 10000000);
-    if (gps.satellites.isValid()) {    
+    if (gps.satellites.isValid()) {
       numSat = gps.satellites.value();
     }
     gps_alt = gps.altitude.meters();
@@ -579,6 +589,10 @@ void debugPrint() {
   mspSerial.println(climb_rate);
   mspSerial.print("Sample Count / transmit: ");
   mspSerial.println(lastCount);
+#ifdef USE_PWM_ARM
+  mspSerial.print("PWM Value: ");
+  mspSerial.println(readChannel(pwm_arm_pin, 1000, 2000, 0));
+#endif
 #ifdef USE_GPS
   mspSerial.print("Lat: ");
   mspSerial.println(gps_lat);
@@ -606,58 +620,100 @@ void debugPrint() {
 }
 
 #ifdef LOG_GPS
-void logGPS() {
-  if (fsInit == true && fileStarted == false && flightModeFlags == 3) {
-    uint32_t maxNum = 1;
-    Dir dir = SPIFFS.openDir("/");
-    File file = dir.openFile("r");
-    while (dir.next()) {
-      maxNum++;
-    }
-    String fileName = "/" + String(maxNum);
-    gpsLogFile = SPIFFS.open(fileName, "w");  //need to test what turning off without closing the file does
-    if (gpsLogFile) {
-      fileStarted = true;
-    } else {
-      fileStarted = false;
+
+void logGPSFrame() {
+  while (gpsSerial.available()) {
+    gps.encode(gpsSerial.read());
+  }
+  if (gpsLoggingStarted == false) {
+    if (gps.location.isValid()) {
+      tm currentTime;
+      currentTime.tm_year = gps.date.year() - 1900;
+      currentTime.tm_mon = gps.date.month() - 1;
+      currentTime.tm_mday = gps.date.day();
+      currentTime.tm_hour = gps.time.hour();
+      currentTime.tm_min = gps.time.minute();
+      currentTime.tm_sec = gps.time.second();
+
+      time_t timeStamp = mktime(&currentTime);
+      gpsLogFile.write((uint8_t *)&timeStamp, sizeof(time_t));  //Timestamp is stored at the neginning of the file
+      gpsLoggingStarted = true;
     }
   }
-  if (general_counter % gpsLogInterval == 0 && flightModeFlags == 3) {
-    while (gpsSerial.available()) {
-      gps.encode(gpsSerial.read());
+  if (!gpsLoggingStarted) {
+    return;
+  }
+  if (!gps.location.isValid()) {
+    if (lastFrame.latitude != 0.0f) {
+      gpsLogFile.write((uint8_t *)&lastFrame, sizeof(GPS_LOG_FRAME));
     }
-    if (gpsLoggingStarted == false) {
-      if (gps.location.isValid()) {
-        tm currentTime;
-        currentTime.tm_year = (gps.date.year()) - 1900;
-        currentTime.tm_mon = (gps.date.month()) - 1;
-        currentTime.tm_mday = (gps.date.day());
-        currentTime.tm_hour = (gps.time.hour());
-        currentTime.tm_min = (gps.time.minute());
-        currentTime.tm_sec = (gps.time.second());
+    return;
+  }
+  GPS_LOG_FRAME logFrame;
+  logFrame.altitude = (altSamples / sampleCount);  //altitude in meters
 
-        time_t timeStamp = mktime(&currentTime);
-        gpsLogFile.write((uint8_t *)&timeStamp, sizeof(time_t));
-        gpsLoggingStarted = true;
-      }
-    }
-    if (gpsLoggingStarted == true) {
-      if (gps.location.isValid() && gps.location.lat() != 0.0) {
-        GPS_LOG_FRAME logFrame;
-        logFrame.altitude = (altSamples / sampleCount);  //altitude in meters
+  logFrame.latitude = gps.location.lat();
+  logFrame.longitude = gps.location.lng();
+  logFrame.heading = gps.course.deg();
+  logFrame.speed = gps.speed.kmph() / 3.6f;
+  lastFrame = logFrame;
+  gpsLogFile.write((uint8_t *)&logFrame, sizeof(GPS_LOG_FRAME));
+}
 
-        logFrame.latitude = gps.location.lat();
-        logFrame.longitude = gps.location.lng();
-        logFrame.heading = gps.course.deg();
-        logFrame.speed = (gps.speed.kmph() * 1000.0f) / 3600.0f;
-        lastFrame = logFrame;
-        gpsLogFile.write((uint8_t *)&logFrame, sizeof(GPS_LOG_FRAME));
-      } else {
-        if (lastFrame.latitude != 0.0f) {
-          gpsLogFile.write((uint8_t *)&lastFrame, sizeof(GPS_LOG_FRAME));
-        }
-      }
-    }
+uint32_t logGetNextFileNum() {
+  uint32_t maxNum = 1;
+  Dir dir = SPIFFS.openDir("/");
+  File file = dir.openFile("r");
+  while (dir.next()) {
+    maxNum++;
+  }
+  return maxNum;
+}
+
+void logRemoveOldFiles(uint32_t fileLimit) {
+  uint32_t nextFile = logGetNextFileNum();
+  if (fileLimit >= nextFile) {
+    return;
+  }
+  //If next file is 16, we need to remove 16-10=6 files to get the FS back to 9 files
+  //The process for this will be removing files 1-6, Then renaming 7 -> 1, 8 -> 2,...,and 15->9, so 10 will be the next file created when the system is armed
+  int filesToRemove = nextFile-fileLimit; //16 - 10 = 6
+  for (int i = 1; i<filesToRemove+1;i++) {
+    SPIFFS.remove(String("/")+String(i));
+  }
+  int filesToRename = fileLimit;
+  for (int i = 1; i<filesToRename; i++) {
+    String newFile = String("/")+String(i);
+    String oldFile = String("/")+String(i+filesToRemove);
+    SPIFFS.rename(oldFile,newFile);
+  }
+}
+
+void logFileCreate() {
+  uint32_t nextFileNum = logGetNextFileNum();
+#ifdef DEBUG
+  Serial.println(String("Attempting to create file with name: ") + String(nextFileNum));
+#endif
+  String fileName = String("/") + String(nextFileNum);
+  gpsLogFile = SPIFFS.open(fileName, "w");  //need to test what turning off without closing the file does
+  fileStarted = gpsLogFile;
+#ifdef DEBUG
+  Serial.println("File Created!");
+#endif
+}
+
+void logGPS() {
+  if (flightModeFlags != 3 || fsInit == false) {
+    return;
+  }
+#ifdef DEBUG
+  Serial.println("LOG Gps");
+#endif
+  if (fileStarted == false) {
+    logFileCreate();
+  }
+  if (general_counter % gpsLogInterval == 0) {
+    logGPSFrame();
   }
 }
 
@@ -683,12 +739,13 @@ void checkTurnOnFileServer() {
 }
 
 void turnWifiOff() {
-  webserver.send(200, "text/html", "");
+  webserver.send(200, "text/html", "Wifi Turned Off. <a href='/'>Return to main screen</a> when reconnected.");
   webserver.client().stop();
   fileServerOn = false;
   digitalWrite(LED_BUILTIN, HIGH);
   WiFi.softAPdisconnect(true);
-  gpsSerial.begin(GPSBaud);
+  // gpsSerial.begin(GPSBaud);
+  ESP.reset();
 }
 
 void sendHeader() {
@@ -726,14 +783,19 @@ void showFiles() {
   String webpage = "<h2>QLiteOSD v" + String(VERSION) + " GPS Log Files</h2><ul>";
 
   Dir dir = SPIFFS.openDir("/");
+  String lastFileNum = String("");
   while (dir.next()) {
     String fileNum = dir.fileName();
+    if (lastFileNum == fileNum) {
+      break; //In the chance that there is a duplicate at the end, break
+    }
+    lastFileNum = fileNum;
     String fileName = fileNum;
     fileName.replace("/", "");
-    fileName = "QLiteOSD_GPS_" + fileName + ".gpx";
     File file = dir.openFile("r");
     time_t time = 0;
     file.readBytes((char *)&time, sizeof(time_t));
+    fileName = "QLiteOSD_GPS_" + fileName + ".gpx";
     webpage += "<li><a href='download?download=" + fileNum + "'>" + fileName + "</a>  &nbsp;&nbsp;" + fileSize(file.size()) + "&nbsp;&nbsp;<span class='time'>" + String(time) + "</span><br/></li>";
   };
 
