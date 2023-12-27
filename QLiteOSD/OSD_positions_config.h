@@ -3,7 +3,7 @@
 //234 -> not visible. Horizontally 2048-2074(spacing 1), vertically 2048-2528(spacing 32). 26 characters X 15 lines
 
 #define ESP8266  // Uncommment this line if using the ESP8266 (Wemos D1 Mini)
-#define USE_GPS  //comment out to disable.  Reads and displays GPS data - requires Nano 328 due to file size
+//#define USE_GPS  //comment out to disable.  Reads and displays GPS data - requires Nano 328 due to file size
 #if defined(ESP8266) && defined(USE_GPS)
 #define LOG_GPS //uncomment to log position and altitude data to the internal filesystem (requires a pushbutton to be added to switch to wifi mode)
 #endif
