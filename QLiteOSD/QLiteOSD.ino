@@ -160,7 +160,7 @@ int16_t pitch_angle = 0;
 uint32_t distanceToHome = 0;  // distance to home in meters
 int16_t directionToHome = 0;  // direction to home in degrees
 uint8_t fix_type = 0;         // < 0-1: no fix, 2: 2D fix, 3: 3D fix
-uint8_t batteryCellCount = 3;
+uint8_t batteryCellCount = 0;
 uint16_t batteryCapacity = 2200;
 uint8_t legacyBatteryVoltage = 0;
 uint8_t batteryState = 0;  // voltage color 0==white, 1==red
@@ -584,6 +584,8 @@ void debugPrint() {
   mspSerial.println(flightModeFlags);
   mspSerial.print("Voltage: ");
   mspSerial.println(((double)vbat / 10), 1);
+  mspSerial.print("Cell Count: ");
+  mspSerial.println(batteryCellCount);
   mspSerial.print("Altitude (cm): ");
   mspSerial.println(relative_alt);
   mspSerial.print("Climb Rate (cm/s): ");
