@@ -70,7 +70,8 @@ bool MSP::recv(uint8_t * messageID, void * payload, uint8_t maxSize, uint8_t * r
     _stream->readBytes((char*)header, 3);
 
     // check header
-    if (header[0] == '$' && header[1] == 'M' && header[2] == '>') {
+    if (header[0] == '$' && header[1] == 'M' && (header[2] == '>' || header[2] == '<')) {
+
       // header ok, read payload size
       *recvSize = _stream->read();
 
@@ -111,6 +112,21 @@ bool MSP::recv(uint8_t * messageID, void * payload, uint8_t maxSize, uint8_t * r
   
 }
 
+bool MSP::activityDetected() 
+{
+  uint32_t t0 = millis();
+
+  while (1) {
+    
+    // read header
+    while (_stream->available() < 6)
+      if (millis() - t0 >= _timeout)
+        return false;
+        
+    return true; 
+  }
+  
+}
 
 // wait for messageID
 // recvSize can be NULL
@@ -215,6 +231,5 @@ bool MSP::getActiveModes(uint32_t * activeModes)
 
   return false;
 }
-
 
 

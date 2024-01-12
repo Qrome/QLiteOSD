@@ -7,7 +7,7 @@
 #if defined(ESP8266) && defined(USE_GPS)
 #define LOG_GPS //uncomment to log position and altitude data to the internal filesystem (requires a pushbutton to be added to switch to wifi mode)
 #endif
-//#define USE_PWM_ARM // on default pin D5 -- If commented out arming will occure with altitude change
+#define USE_PWM_ARM // on default pin D5 -- If commented out arming will occure with altitude change
 //#define DEBUG    // uncomment this line to debug in Serial Monitor 
 
 #include <stdint.h>

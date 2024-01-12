@@ -111,7 +111,7 @@ struct msp_name_t {
 } __attribute__ ((packed));
 
 struct msp_battery_state_t {
-  uint8_t batteryCellCount;
+    uint8_t batteryCellCount;
     uint16_t batteryCapacity;
     uint8_t legacyBatteryVoltage;
     uint16_t mAhDrawn;
