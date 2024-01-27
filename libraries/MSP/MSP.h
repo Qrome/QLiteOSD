@@ -651,7 +651,9 @@ class MSP {
     // low level functions
 
     void send(uint8_t messageID, void * payload, uint8_t size);
-    bool recv(uint8_t * messageID, void * payload, uint8_t maxSize, uint8_t * recvSize);    
+    bool recv(uint8_t * messageID, void * payload, uint8_t maxSize, uint8_t * recvSize); 
+
+    bool activityDetected();
 
     bool waitFor(uint8_t messageID, void * payload, uint8_t maxSize, uint8_t * recvSize = NULL);
     
@@ -672,4 +674,3 @@ class MSP {
     uint32_t _timeout;
     
 };
-

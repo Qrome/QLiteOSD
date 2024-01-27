@@ -39,9 +39,8 @@
 #include "OSD_positions_config.h"
 #include <Adafruit_BMP280.h>  // May need to adjust for I2C address #define BMP280_ADDRESS  (0x76)
 
-#define VERSION "1.4"
+#define VERSION "1.5"
 #define BMP_ADDRESS 0x76              // default is 0x77
-#define MAH_CALIBRATION_FACTOR 1.0f   //used to calibrate mAh reading.
 #define SPEED_IN_KILOMETERS_PER_HOUR  //if commented out defaults to m/s
 #define IMPERIAL_UNITS                //Altitude in feet, distance to home in miles.
 #define FC_FIRMWARE_NAME "Betaflight"
@@ -90,7 +89,6 @@ ESP8266WebServer webserver(80);
 
 TinyGPSPlus gps;
 SoftwareSerial gpsSerial(gps_RX_pin, gps_TX_pin);
-//#define STORE_GPS_LOCATION_IN_SUBTITLE_FILE        //comment out to disable. Stores GPS location in the goggles .srt file in place of the "uavBat:" field at a slow rate of ~2-3s per GPS coordinate
 #endif
 
 #ifdef USE_PWM_ARM
@@ -120,17 +118,18 @@ boolean lightOn = true;
 #ifdef ESP8266
 const float arduinoVCC = 3.25;  //Measured ESP8266 3.3 pin voltage
 #else
-const float arduinoVCC = 4.8;  //Measured Arduino 5V pin voltage
+const float arduinoVCC = 4.95;  //Measured Arduino 5V pin voltage
 #endif
-float ValueR1 = 7500;   //7.5K Resistor
-float ValueR2 = 30000;  //30K Resistor
+float ValueR1 = 7500.0;   //7.5K Resistor
+float ValueR2 = 30000.0;  //30K Resistor
 const int alanogPin = A0;
-float averageVoltage = 0;
+float averageVoltage = 0.0;
 int sampleVoltageCount = 0;
+boolean activityDetected = false;
 
 //Other
-char fcVariant[5] = "BTFL";
-char craftname[15] = "QLiteOSD";
+const char fcVariant[5] = "BTFL";
+const char craftname[15] = "QLiteOSD";
 uint32_t previousMillis_MSP = 0;
 const uint32_t next_interval_MSP = 100;
 uint32_t custom_mode = 0;  //flight mode
@@ -159,29 +158,16 @@ int16_t roll_angle = 0;
 int16_t pitch_angle = 0;
 uint32_t distanceToHome = 0;  // distance to home in meters
 int16_t directionToHome = 0;  // direction to home in degrees
-uint8_t fix_type = 0;         // < 0-1: no fix, 2: 2D fix, 3: 3D fix
-uint8_t batteryCellCount = 0;
 uint16_t batteryCapacity = 2200;
 uint8_t legacyBatteryVoltage = 0;
 uint8_t batteryState = 0;  // voltage color 0==white, 1==red
 uint16_t batteryVoltage = 0;
 int16_t heading = 0;
-float dt = 0;
-#ifdef MAH_CALIBRATION_FACTOR
-float mAh_calib_factor = MAH_CALIBRATION_FACTOR;
-#else
-float mAh_calib_factor = 1;
-#endif
 uint8_t set_home = 1;
 uint32_t general_counter = next_interval_MSP;
 uint16_t blink_sats_orig_pos = osd_gps_sats_pos;
 uint16_t blink_sats_blank_pos = 234;
 uint32_t previousFlightMode = custom_mode;
-uint8_t srtCounter = 1;
-uint8_t thr_position = 0;
-float wind_direction = 0;  // wind direction (degrees)
-float wind_speed = 0;      // wind speed in ground plane (m/s)
-float relative_wind_direction = 0;
 int16_t climb_rate = 0;
 
 msp_battery_state_t battery_state = { 0 };
@@ -203,6 +189,9 @@ void setup() {
   msp.begin(mspSerial);
   bme.begin(BMP_ADDRESS);  //Default Address 0x77
   pinMode(LED_BUILTIN, OUTPUT);
+#ifdef DEBUG
+  Serial.println("Starting!");
+#endif
 #ifdef LOG_GPS
   if (SPIFFS.begin()) {
     fsInit = true;
@@ -352,13 +341,9 @@ int readChannel(int channelInput, int minLimit, int maxLimit, int defaultValue) 
 }
 #endif
 
+void send_msp_to_airunit(uint8_t voltage) {
 
-void display_flight_mode() {
-  show_text(&craftname);
-}
-
-void send_msp_to_airunit() {
-
+  uint8_t cellCount = getCellCount(voltage);
   //MSP_FC_VARIANT
   memcpy(fc_variant.flightControlIdentifier, fcVariant, sizeof(fcVariant));
   msp.send(MSP_FC_VARIANT, &fc_variant, sizeof(fc_variant));
@@ -381,7 +366,7 @@ void send_msp_to_airunit() {
   msp.send(MSP_STATUS, &status_DJI, sizeof(status_DJI));
 
   //MSP_ANALOG
-  analog.vbat = (uint8_t)vbat;
+  analog.vbat = voltage;
   analog.rssi = rssi;
   analog.amperage = amperage;
   analog.mAhDrawn = mAhDrawn;
@@ -389,12 +374,12 @@ void send_msp_to_airunit() {
 
   //MSP_BATTERY_STATE
   battery_state.amperage = amperage;
-  battery_state.batteryVoltage = (uint8_t)vbat * 10;
+  battery_state.batteryVoltage = (uint16_t)(voltage * 10);
   battery_state.mAhDrawn = mAhDrawn;
-  battery_state.batteryCellCount = batteryCellCount;
+  battery_state.batteryCellCount = cellCount;
   battery_state.batteryCapacity = batteryCapacity;
   battery_state.batteryState = batteryState;
-  battery_state.legacyBatteryVoltage = (uint8_t)vbat;
+  battery_state.legacyBatteryVoltage = voltage;
   msp.send(MSP_BATTERY_STATE, &battery_state, sizeof(battery_state));
 
   //MSP_RAW_GPS
@@ -433,17 +418,16 @@ void blink_sats() {
   }
 }
 
-void show_text(char (*text)[15]) {
-  memcpy(craftname, *text, sizeof(craftname));
-}
+uint8_t getCellCount(uint8_t voltage) {
+  uint8_t batteryCellCount = 0;
+  if (voltage < 43 && voltage > 0) batteryCellCount = 1;
+  else if (voltage < 85) batteryCellCount = 2;
+  else if (voltage < 127) batteryCellCount = 3;
+  else if (voltage < 169) batteryCellCount = 4;
+  else if (voltage < 211) batteryCellCount = 5;
+  else if (voltage < 255) batteryCellCount = 6;
 
-void set_battery_cells_number() {
-  if (vbat < 43) batteryCellCount = 1;
-  else if (vbat < 85) batteryCellCount = 2;
-  else if (vbat < 127) batteryCellCount = 3;
-  else if (vbat < 169) batteryCellCount = 4;
-  else if (vbat < 211) batteryCellCount = 5;
-  else if (vbat < 255) batteryCellCount = 6;
+  return batteryCellCount;
 }
 
 void readAltitude() {
@@ -481,14 +465,14 @@ void calibrateHome() {
 
 void readVoltage() {
   int readValue = analogRead(alanogPin);
-  averageVoltage += (readValue * (arduinoVCC / 1024)) * (1 + (ValueR2 / ValueR1));
+  averageVoltage += (readValue * (arduinoVCC / 1024.0)) * (1 + (ValueR2 / ValueR1));
   sampleVoltageCount++;
 }
 
 void getVoltageSample() {
   vbat = (uint8_t)((averageVoltage / sampleVoltageCount) * 10);
   sampleVoltageCount = 0;
-  averageVoltage = 0;
+  averageVoltage = 0.0;
 }
 
 #ifdef USE_GPS
@@ -525,7 +509,7 @@ void loop() {
     return;
   }
 #endif
-
+  
   uint32_t currentMillis_MSP = millis();
 
   readAltitude();
@@ -542,9 +526,8 @@ void loop() {
     logGPS();
 #endif
 
-    if (general_counter % 200 == 0) {  // update the altitude and voltage values every 200ms
+    if (general_counter % 200 == 0) {  // update the altitude values every 200ms
       getAltitudeSample();
-      getVoltageSample();
       if (lightOn) {
         digitalWrite(LED_BUILTIN, LOW);
       } else {
@@ -552,31 +535,22 @@ void loop() {
       }
       lightOn = !lightOn;
     }
+    getVoltageSample();
     set_flight_mode_flags();
     blink_sats();
 
+    // SEND the data out
 #ifdef DEBUG
     debugPrint();
 #else
-    send_msp_to_airunit();
+    send_msp_to_airunit(vbat);
 #endif
     general_counter += next_interval_MSP;
   }
-  if (custom_mode != previousFlightMode) {
-    previousFlightMode = custom_mode;
-    display_flight_mode();
-  }
-
-  if (batteryCellCount == 0 && vbat > 0) {
-    set_battery_cells_number();
-  }
-
-  //display flight mode every 10s
-  if (general_counter % 10000 == 0) {
-    display_flight_mode();
-  }
 }
 
+
+#ifdef DEBUG
 //*** USED ONLY FOR DEBUG ***
 void debugPrint() {
   mspSerial.println("**********************************");
@@ -585,7 +559,7 @@ void debugPrint() {
   mspSerial.print("Voltage: ");
   mspSerial.println(((double)vbat / 10), 1);
   mspSerial.print("Cell Count: ");
-  mspSerial.println(batteryCellCount);
+  mspSerial.println(getCellCount(vbat));
   mspSerial.print("Altitude (cm): ");
   mspSerial.println(relative_alt);
   mspSerial.print("Climb Rate (cm/s): ");
@@ -621,9 +595,11 @@ void debugPrint() {
   mspSerial.println(directionToHome);
 #endif
 }
+#endif
+
 
 #ifdef LOG_GPS
-
+//Only used with GPS Option
 void logGPSFrame() {
   while (gpsSerial.available()) {
     gps.encode(gpsSerial.read());
@@ -845,20 +821,18 @@ void downloadFile() {
       File rawDataFile = SPIFFS.open(filename, "r");
       time_t startTime = 0;
       rawDataFile.readBytes((char *)&startTime, sizeof(uint64_t));
+      String nameAndTimeStamp = getFileName() + String(startTime);
       WiFiClient client = webserver.client();
       size_t fileSize = rawDataFile.size();
       size_t numFrames = (fileSize / sizeof(GPS_LOG_FRAME));
       client.print("HTTP/1.1 200 OK\r\n");
-      client.print("Content-Disposition: attachment; filename=" + getFileName() + String(startTime) + ".gpx\r\n");
+      client.print("Content-Disposition: attachment; filename=" + nameAndTimeStamp + ".gpx\r\n");
       client.print("Content-Type: application/octet-stream\r\n");
-      //client.print("Content-Length: 0"\r\n");
       client.print("Connection: close\r\n");
       client.print("Access-Control-Allow-Origin: *\r\n");
       client.print("\r\n");
-      char sizeWriteBuffer[10];
-      static const String gpxheader = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<gpx version=\"1.0\">\n\t<name>QLiteOSD v" + String(VERSION) + 
-        "</name>\n\t<trk><name>" + getFileName() + String(startTime) + "</name><number>1</number><trkseg>\n";
-      //client.write(sprintf(sizeWriteBuffer,"%X\n",sizeof(gpxheader)-2));
+      String gpxheader = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<gpx version=\"1.0\">\n\t<name>QLiteOSD v" + String(VERSION) + 
+        "</name>\n\t<trk><name>" + nameAndTimeStamp + "</name><number>1</number><trkseg>\n";
       client.print(gpxheader);
 
       char buf[sizeof("0000-00-00T00:00:00.000Z") + 5];
@@ -875,7 +849,6 @@ void downloadFile() {
         String fullTime = String(buf) + String(msecVal) + "Z";
         rawDataFile.readBytes((char *)&logData, sizeof(GPS_LOG_FRAME));
         sprintf(fullbuf, "\t\t<trkpt lat=\"%f\" lon=\"%f\"><ele>%f</ele><time>%s</time><speed>%f</speed><course>%f</course></trkpt>\n", logData.latitude, logData.longitude, logData.altitude, fullTime.c_str(), logData.speed, logData.heading);
-        //client.write(sprintf(sizeWriteBuffer,"%X\n",strlen(fullbuf)-1));
         client.write(fullbuf);
       }
       client.write(gpxcloser);
