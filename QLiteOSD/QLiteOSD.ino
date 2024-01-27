@@ -118,7 +118,7 @@ boolean lightOn = true;
 #ifdef ESP8266
 const float arduinoVCC = 3.25;  //Measured ESP8266 3.3 pin voltage
 #else
-const float arduinoVCC = 5.0;  //Measured Arduino 5V pin voltage
+const float arduinoVCC = 4.95;  //Measured Arduino 5V pin voltage
 #endif
 float ValueR1 = 7500.0;   //7.5K Resistor
 float ValueR2 = 30000.0;  //30K Resistor
@@ -189,6 +189,9 @@ void setup() {
   msp.begin(mspSerial);
   bme.begin(BMP_ADDRESS);  //Default Address 0x77
   pinMode(LED_BUILTIN, OUTPUT);
+#ifdef DEBUG
+  Serial.println("Starting!");
+#endif
 #ifdef LOG_GPS
   if (SPIFFS.begin()) {
     fsInit = true;
@@ -818,20 +821,18 @@ void downloadFile() {
       File rawDataFile = SPIFFS.open(filename, "r");
       time_t startTime = 0;
       rawDataFile.readBytes((char *)&startTime, sizeof(uint64_t));
+      String nameAndTimeStamp = getFileName() + String(startTime);
       WiFiClient client = webserver.client();
       size_t fileSize = rawDataFile.size();
       size_t numFrames = (fileSize / sizeof(GPS_LOG_FRAME));
       client.print("HTTP/1.1 200 OK\r\n");
-      client.print("Content-Disposition: attachment; filename=" + getFileName() + String(startTime) + ".gpx\r\n");
+      client.print("Content-Disposition: attachment; filename=" + nameAndTimeStamp + ".gpx\r\n");
       client.print("Content-Type: application/octet-stream\r\n");
-      //client.print("Content-Length: 0"\r\n");
       client.print("Connection: close\r\n");
       client.print("Access-Control-Allow-Origin: *\r\n");
       client.print("\r\n");
-      char sizeWriteBuffer[10];
-      static const String gpxheader = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<gpx version=\"1.0\">\n\t<name>QLiteOSD v" + String(VERSION) + 
-        "</name>\n\t<trk><name>" + getFileName() + String(startTime) + "</name><number>1</number><trkseg>\n";
-      //client.write(sprintf(sizeWriteBuffer,"%X\n",sizeof(gpxheader)-2));
+      String gpxheader = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<gpx version=\"1.0\">\n\t<name>QLiteOSD v" + String(VERSION) + 
+        "</name>\n\t<trk><name>" + nameAndTimeStamp + "</name><number>1</number><trkseg>\n";
       client.print(gpxheader);
 
       char buf[sizeof("0000-00-00T00:00:00.000Z") + 5];
@@ -848,7 +849,6 @@ void downloadFile() {
         String fullTime = String(buf) + String(msecVal) + "Z";
         rawDataFile.readBytes((char *)&logData, sizeof(GPS_LOG_FRAME));
         sprintf(fullbuf, "\t\t<trkpt lat=\"%f\" lon=\"%f\"><ele>%f</ele><time>%s</time><speed>%f</speed><course>%f</course></trkpt>\n", logData.latitude, logData.longitude, logData.altitude, fullTime.c_str(), logData.speed, logData.heading);
-        //client.write(sprintf(sizeWriteBuffer,"%X\n",strlen(fullbuf)-1));
         client.write(fullbuf);
       }
       client.write(gpxcloser);
