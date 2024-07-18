@@ -1,11 +1,15 @@
+#pragma once
 #include <stdint.h>
+
+#include "libraries/MSP.h"
+#include "config.h"
 
 #define MSP_OSD_CONFIG            84        //out message         Get osd settings - betaflight
 #define MSP_NAME                  10
 #define MSP_BATTERY_STATE         130       //out message         Connected/Disconnected, Voltage, Current Used
 
 struct msp_osd_config_t {
-    uint8_t osdflags;
+    uint8_t osd_flags;
     uint8_t video_system;
     uint8_t units;
     uint8_t rssi_alarm;
@@ -133,3 +137,30 @@ struct msp_status_DJI_t {
   uint8_t  DJI_ARMING_DISABLE_FLAGS_COUNT; //25
   uint32_t djiPackArmingDisabledFlags; //(1 << 24)
 } __attribute__ ((packed));
+
+enum FlightModeFlags {
+    FLIGHT_UNARMED = 0x00000002,
+    FLIGHT_ARMED = 0x00000003
+};
+
+class MspOSD {
+public:
+    MspOSD() : mspSerial(Serial) {}
+    void sendCraftMSP();
+    void init();
+
+#ifdef DEBUG
+    void debugPrint();
+#endif
+
+    MSP msp;
+    HardwareSerial& mspSerial;
+};
+
+extern MspOSD mspOsd;
+
+#ifdef DEBUG
+#define debugLog(inValue) mspOsd.mspSerial.println(inValue)
+#else
+#define debugLog(inValue)
+#endif
