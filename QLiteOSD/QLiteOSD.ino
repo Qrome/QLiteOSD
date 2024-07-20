@@ -324,7 +324,7 @@ void invert_pos(uint16_t *pos1, uint16_t *pos2) {
 
 void set_flight_mode_flags() {
   if (USE_PWM_ARM) {
-      //USE PWM signal to ARM
+    //USE PWM signal to ARM
     volatile int pwmValue = readChannel(pwm_arm_pin, 1000, 2000, 0);
     if ((flightModeFlags == 0x00000002) && pwmValue >= triggerValue) {
       flightModeFlags = 0x00000003;  // armed to start recording
